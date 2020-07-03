@@ -1,14 +1,16 @@
 package com.sugon.excel.controller;
 
 
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author litianfu
@@ -22,11 +24,29 @@ import java.io.File;
 public class ExcelServerProviderController {
 
     /**
+     * excel文件路径
+     */
+    @Value("${excel.path}")
+    private String excelFilePath;
+
+    /**
+     * 用于存放excel表格所有数据
+     */
+    private Map<String, List<String>> map;
+
+    /**
+     * 若有多个工作表，使用list进行存储
+     */
+    private List<Map<String, List<String>>> mapList;
+
+
+    /**
      * 服务连通性测试
+     *
      * @return
      */
     @RequestMapping("/test")
-    public String test(){
+    public String test() {
         System.out.println("test");
         return "test....";
     }
@@ -34,21 +54,27 @@ public class ExcelServerProviderController {
     /**
      * 对poi库进行测试
      * 读取excel文件
+     *
      * @return
      */
     @RequestMapping("/readExcelFile")
-    public String readExcelFile() throws Exception{
+    public String readExcelFile() throws Exception {
+
+
         //读取excel文件
-        File xlsxFile = new File("C:\\Users\\Blunt\\Desktop\\2020-7-3南宁学院案件明细.xlsx");
+        File xlsxFile = new File(excelFilePath);
         //工作表
         Workbook sheets = WorkbookFactory.create(xlsxFile);
         //获取工作表个数
         int numberOfSheets = sheets.getNumberOfSheets();
 
+         map = new HashMap<>();
+
         //遍历表
         for (int i = 0; i < numberOfSheets; i++) {
             //获取表
             Sheet sheet = sheets.getSheetAt(i);
+
             //获取该表行数
             int maxRowNum = sheet.getLastRowNum() + 1;
             // Excel第一行,就是表头
@@ -59,19 +85,26 @@ public class ExcelServerProviderController {
             //获取不为空的的列个数
             int cells = temp.getPhysicalNumberOfCells();
 
-            // 读数据。
-            for (int row = 0; row < maxRowNum; row++) {
-                Row r = sheet.getRow(row);
-                for (int col = 0; col < cells; col++) {
-                    System.out.print(r.getCell(col).toString()+" ");
+            //读取数据
+            for (int col = 0; col < cells; col++) {
+                List<String> list = new ArrayList<>();
+                for (int row = 1; row < maxRowNum; row++) {
+                    //获取对应列的所有数据
+                    Cell cell = sheet.getRow(row).getCell(col);
+                    //将数据存入list
+                    list.add(cell.toString());
                 }
-
-                // 换行。
-                System.out.println();
+                //表头作为map的键，值为list
+                map.put(sheet.getRow(0).getCell(col).toString(), list);
             }
-
-
+            System.out.println(map);
+            //将不同工作表的数据存储到list中
+            mapList = new ArrayList<>();
+            mapList.add(map);
+            //清除map缓存
+            map.clear();
         }
+
         return null;
     }
 
