@@ -4,11 +4,13 @@ package com.sugon.excel.controller;
 import org.apache.poi.ss.usermodel.*;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +42,7 @@ public class ExcelServerProviderController {
     /**
      * 按行存放的表格数据
      */
-    private List<List<Map<String,Object>>> resultData;
+    private List<List<Map<String, Object>>> resultData;
 
     /**
      * 若有多个工作表，使用list进行存储
@@ -65,7 +67,7 @@ public class ExcelServerProviderController {
      *
      * @return
      */
-    @RequestMapping("/readExcelFileOnColumn")
+    @GetMapping("/readExcelFileOnColumn")
     public void readExcelFileOnColumn() throws Exception {
 
 
@@ -130,15 +132,21 @@ public class ExcelServerProviderController {
      *
      * @throws Exception
      */
-    @RequestMapping("/readExcelFileOnRow")
-    public List<List<Map<String,Object>>> readExcelFileOnRow() throws Exception {
+    @GetMapping("/readExcelFileOnRow")
+    public List<List<Map<String, Object>>> readExcelFileOnRow() {
         //读取excel文件
         File xlsxFile = new File(excelFilePath);
         //工作表
-        Workbook sheets = WorkbookFactory.create(xlsxFile);
+        Workbook sheets = null;
+        try {
+            sheets = WorkbookFactory.create(xlsxFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         //获取工作表个数
         int numberOfSheets = sheets.getNumberOfSheets();
 
+        //存储封装好的excel所有数据
         resultData = new ArrayList<>();
 
 
@@ -156,15 +164,16 @@ public class ExcelServerProviderController {
             if (temp == null) {
                 continue;
             }
-            List<Map<String,Object>> sheetList = new ArrayList<>();
-
+            //存储不同工作表的数据
+            List<Map<String, Object>> sheetList = new ArrayList<>();
 
 
             //遍历整个表格
             for (int row = 1; row < maxRowNum; row++) {
                 //获取行
                 Row sheetRow = sheet.getRow(row);
-                Map<String, Object> map= new HashMap<>();
+                //将每一行数据封装到map中
+                Map<String, Object> map = new HashMap<>();
                 for (int col = 0; col < cells; col++) {
                     //将每一行数据存储成一个json对象
                     map.put(sheet.getRow(0).getCell(col).toString()
@@ -182,16 +191,21 @@ public class ExcelServerProviderController {
     }
 
     /**
-     * 通过关键信息查询表格数据
+     * 通过关键信息精准查询表格数据
      * （行存储方式）
      *
-     * @param key
-     * @param val
+     * @param key       某个表头的值
+     * @param val       表头对应的列中的某个值
+     * @param workbook  第几张工作表
+     * @param sort      排序方式（asc 升序、 desc 降序）
+     * @param sortedKey 要排序的字段
      */
-    @RequestMapping("selectRowByKeyOnRow")
-    public List<Map<String,Object>> selectRowByKeyOnRow(@RequestParam("key") String key,
-                                    @RequestParam("val") String val,
-                                    @RequestParam("workbook")Integer workbook) throws Exception {
+    @GetMapping("selectRowByKeyOnRow")
+    public List<Map<String, Object>> selectRowByKeyOnRow(@RequestParam("key") String key,
+                                                         @RequestParam("val") String val,
+                                                         @RequestParam("workbook") Integer workbook,
+                                                         @RequestParam(value = "sortedKey",required = false) String sortedKey,
+                                                         @RequestParam(value = "sort",required = false) String sort) {
         this.readExcelFileOnRow();
 
         //获取哪一张工作表的数据
@@ -199,10 +213,70 @@ public class ExcelServerProviderController {
 
         List<Map<String, Object>> result = sheetList.stream()
                 .filter(e -> e.get(key).equals(val))
+                //自定义排序
+                .sorted((o1, o2) -> {
+                    //如果没有设置排序选项，默认为升序排序
+                    if (!(sort == null || "".equals(sort) || sortedKey == null || "".equals(sortedKey))) {
+                        //升序
+                        if ("asc".equals(sort)) {
+                            return o1.get(sortedKey).toString().compareTo(o2.get(sortedKey).toString());
+                        }
+                        //降序
+                        if ("desc".equals(sort)) {
+                            return o2.get(sortedKey).toString().compareTo(o1.get(sortedKey).toString());
+                        }
+                    }
+                    return 1;
+                })
                 .collect(Collectors.toList());
         System.out.println(result);
         return result;
 
+    }
+
+    /**
+     * 通过关键信息模糊查询表格数据
+     * （行存储方式）
+     *
+     * @param key       某个表头的值
+     * @param likeVal   表头对应的列中的某个模糊查询的值
+     * @param workbook  第几张工作表
+     * @param sort      排序方式（asc 升序、 desc 降序）
+     * @param sortedKey 要排序的字段
+     * @return
+     */
+    @GetMapping("/selectRowByLikeKeyOnRow")
+    public List<Map<String, Object>> selectRowByLikeKeyOnRow(@RequestParam(value = "key") String key,
+                                                             @RequestParam("likeVal") String likeVal,
+                                                             @RequestParam("workbook") Integer workbook,
+                                                             @RequestParam(value = "sortedKey",required = false) String sortedKey,
+                                                             @RequestParam(value = "sort",required = false) String sort) {
+        this.readExcelFileOnRow();
+
+        //获取哪一张工作表的数据
+        List<Map<String, Object>> sheetList = (List<Map<String, Object>>) resultData.get(workbook);
+
+        List<Map<String, Object>> result = sheetList.stream()
+                .filter(e -> e.get(key).toString().indexOf(likeVal) != -1)
+                //自定义排序
+                .sorted((o1, o2) -> {
+                    //如果没有设置排序选项，默认为升序排序
+                    if (!(sort == null || "".equals(sort) || sortedKey == null || "".equals(sortedKey))) {
+                        //升序
+                        if ("asc".equals(sort)) {
+                            return o1.get(sortedKey).toString().compareTo(o2.get(sortedKey).toString());
+                        }
+                        //降序
+                        if ("desc".equals(sort)) {
+                            return o2.get(sortedKey).toString().compareTo(o1.get(sortedKey).toString());
+                        }
+                    }
+                    return 1;
+                })
+                .collect(Collectors.toList());
+
+
+        return result;
     }
 
 
@@ -215,7 +289,7 @@ public class ExcelServerProviderController {
      * @param val      表头对应的列中的某个值
      * @return 返回满足查找条件的行数据
      */
-    @RequestMapping("/selectRowByKeyOnColumn")
+    @GetMapping("/selectRowByKeyOnColumn")
     public List<Map<String, Object>> selectRowByKeyOnColumn(@RequestParam("key") String key,
                                                             @RequestParam("val") String val,
                                                             @RequestParam("workbook") Integer workbook) throws Exception {
