@@ -43,10 +43,17 @@
             <artifactId>json</artifactId>
             <version>20180813</version>
         </dependency>
+        <!--fastjson-->
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>1.2.72</version>
+        </dependency>
+        <!--将中文转拼音-->
+        <dependency>
+            <groupId>com.belerweb</groupId>
+            <artifactId>pinyin4j</artifactId>
+            <version>2.5.1</version>
         </dependency>
 
         <dependency>

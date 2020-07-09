@@ -5,6 +5,7 @@ import com.sugon.excel.compiler.CompilerJob;
 import com.sugon.excel.entity.EntityGenerator;
 import com.sugon.excel.res.ResultEntity;
 import com.sugon.excel.res.ResultEnum;
+import com.sugon.excel.util.ChineseToSpell;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -250,7 +251,7 @@ public class ExcelServerProviderController {
                 for (int col = 0; col < cells; col++) {
                     //如果遇到空的单元格，进行跳过处理
                     if (sheetRow.getCell(col) == null) {
-                        map.put(sheet.getRow(0).getCell(col).toString(), "null");
+                        map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "null");
                         continue;
                     }
                     switch (sheetRow.getCell(col).getCellType()) {
@@ -259,31 +260,31 @@ public class ExcelServerProviderController {
                             double doubleVal = sheetRow.getCell(col).getNumericCellValue();
                             long longVal = Math.round(doubleVal);
                             if (Double.parseDouble(longVal + ".0") == doubleVal) {
-                                map.put(sheet.getRow(0).getCell(col).toString(), longVal);
+                                map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), longVal);
                             } else {
-                                map.put(sheet.getRow(0).getCell(col).toString(), doubleVal);
+                                map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), doubleVal);
                             }
 
                             break;
                         case STRING:
-                            map.put(sheet.getRow(0).getCell(col).toString()
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString())
                                     , sheetRow.getCell(col).toString());
                             break;
                         case _NONE:
-                            map.put(sheet.getRow(0).getCell(col).toString(), "");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "");
                             break;
                         case BLANK:
-                            map.put(sheet.getRow(0).getCell(col).toString(), "");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "");
                             break;
                         case BOOLEAN:
-                            map.put(sheet.getRow(0).getCell(col).toString()
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString())
                                     , Boolean.valueOf(sheetRow.getCell(col).getBooleanCellValue()));
                             break;
                         case ERROR:
-                            map.put(sheet.getRow(0).getCell(col).toString(), "error");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "error");
                             break;
                         default:
-                            map.put(sheet.getRow(0).getCell(col).toString(), sheetRow.getCell(col).toString());
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), sheetRow.getCell(col).toString());
                     }
 
 
@@ -348,12 +349,19 @@ public class ExcelServerProviderController {
      * 可以通过任何key进行组合查询
      * 不传任何参数，证明查询该表所有数据
      *
-     * @param entityMap 前端传递的查询字段
+     * @param entityMapData 前端传递的查询字段
      * @return
      */
     @RequestMapping("/selectRowByAnyKeys")
-    public ResultEntity selectRowByAnyKeys(@RequestParam Map<String, Object> entityMap) {
+    public ResultEntity selectRowByAnyKeys(@RequestBody Map<String, Object> entityMapData) {
+
+        Map<String,String> excelFiledMap = new HashMap<>();
+
+        Map<String, Object> entityMap = (Map<String, Object>) entityMapData.get("data");
+
+        //获取excel实体
         Object excelEntity = this.getExcelEntity();
+        //获取excel表格数据类型
         Map<String, String> excelCellsType = this.getExcelCellsType();
         //获取实体类的所有getter和setter方法
         Map<String, Method> excelEntityMethods = this.getExcelEntityMethods(excelEntity);
@@ -367,17 +375,24 @@ public class ExcelServerProviderController {
             while (entries.hasNext()) {
 
                 Map.Entry<String, Object> entry = entries.next();
-                String key = entry.getKey();
+
+                //将中文字段转换为拼音
+                String key = ChineseToSpell.getPingYin(entry.getKey());
                 Object value = entry.getValue();
+                //excel表格表头字段
+                excelFiledMap.put(entry.getKey(),key);
                 //如果传入的key不存在
                 if (!excelCellsType.containsKey(key)) {
                     return new ResultEntity(0,"SYS_ERROR","key不存在！");
                 }
 
-                //计算entityMap不为空的元素
-                if (value != null || !("".equals(value.toString()))) {
-                    notNullCount++;
+                if (value == null){
+                    continue;
                 }
+                //计算entityMap不为空的元素
+                notNullCount++;
+
+
                 //封装实体类
                 switch (excelCellsType.get(key)) {
                     case "String":
@@ -611,19 +626,19 @@ public class ExcelServerProviderController {
                 for (int col = 0; col < cells; col++) {
                     switch (sheetRow.getCell(col).getCellType().toString()) {
                         case "STRING":
-                            map.put(sheet.getRow(0).getCell(col).toString(), "String");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "String");
                             break;
                         case "NUMERIC":
-                            map.put(sheet.getRow(0).getCell(col).toString(), "Long");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "Long");
                             break;
                         case "BOOL":
-                            map.put(sheet.getRow(0).getCell(col).toString(), "Boolean");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "Boolean");
                             break;
                         case "DATE":
-                            map.put(sheet.getRow(0).getCell(col).toString(), "Date");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "Date");
                             break;
                         default:
-                            map.put(sheet.getRow(0).getCell(col).toString(), "String");
+                            map.put(ChineseToSpell.getPingYin(sheet.getRow(0).getCell(col).toString()), "String");
                             break;
                     }
                     System.out.print(sheet.getRow(0).getCell(col).toString()
