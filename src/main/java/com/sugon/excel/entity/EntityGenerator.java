@@ -47,23 +47,6 @@ public class EntityGenerator {
     }
 
     public  void  generator(){
-        //读取文件
-//        try {
-//            FileReader fileReader = new FileReader(System.getProperty("user.dir")+"\\src\\main\\java\\com\\sugon\\excel\\entity"+"\\ExcelEntity.java");
-//            BufferedReader bufferedReader = new BufferedReader(fileReader);
-//            String line =bufferedReader.readLine();
-//
-//            while (line!=null){
-//                System.out.println(line);
-//                line = bufferedReader.readLine();
-//            }
-//
-//            bufferedReader.close();
-//            fileReader.close();
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
         //编写实体类文件
         try {
             File file = new File(System.getProperty("user.dir")+"\\src\\main\\java\\com\\sugon\\excel\\entity"+"\\ExcelEntity.java");

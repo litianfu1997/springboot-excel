@@ -5,15 +5,14 @@ import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
 import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
 import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 import net.sourceforge.pinyin4j.format.exception.BadHanyuPinyinOutputFormatCombination;
-import org.springframework.stereotype.Component;
 
 /**
  * @author litianfu
  * @version 1.0
  * @date 2020/7/7 17:34
  * @email 1035869369@qq.com
+ * 中文转拼音工具
  */
-
 public class ChineseToSpell {
 
 
