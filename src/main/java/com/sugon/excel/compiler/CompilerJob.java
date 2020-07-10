@@ -28,13 +28,14 @@ public class CompilerJob {
     /**
      * 将新生成的实体类进行动态编译
      */
-    public void compiler() {
+    public void compiler(String fileName) {
+        String name = fileName.split("\\.")[0];
         try {
             System.out.println(System.getProperty("user.dir"));
             //动态编译
             JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
             int status = javac.run(null, null, null, "-d", System.getProperty("user.dir") + "\\target\\classes"
-                    , System.getProperty("user.dir")+"\\src\\main\\java\\com\\sugon\\excel\\entity"+"\\ExcelEntity.java");
+                    , System.getProperty("user.dir")+"\\src\\main\\java\\com\\sugon\\excel\\entity"+"\\ExcelEntity"+name+".java");
             if (status != 0) {
                 System.out.println("没有编译成功！");
             }else {

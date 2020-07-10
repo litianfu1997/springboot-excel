@@ -3,9 +3,11 @@ package com.sugon.excel.controller;
 
 import com.sugon.excel.compiler.CompilerJob;
 import com.sugon.excel.entity.EntityGenerator;
+import com.sugon.excel.entity.*;
 import com.sugon.excel.res.ResultEntity;
 import com.sugon.excel.res.ResultEnum;
 import com.sugon.excel.util.ChineseToSpell;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -48,6 +51,10 @@ public class ExcelServerProviderController {
     private CompilerJob compiler;
 
 
+    /**
+     * 文件名
+     */
+    private String excelFile;
 
 
     /**
@@ -62,56 +69,13 @@ public class ExcelServerProviderController {
      * @return
      */
     @RequestMapping(value = "/test")
-    public ResultEntity test(@RequestParam Map<String, Object> entityMap) {
+    public ResultEntity test() {
         System.out.println("test");
-//        Object excelEntity = this.getExcelEntity();
-//        Map<String, String> excelCellsType = this.getExcelCellsType();
-//        //获取实体类的所有getter和setter方法
-//        Map<String, Method> excelEntityMethods = this.getExcelEntityMethods(excelEntity);
-//        try {
-//
-//            //遍历map
-//            Iterator<Map.Entry<String, Object>> entries = entityMap.entrySet().iterator();
-//            while (entries.hasNext()) {
-//                Map.Entry<String, Object> entry = entries.next();
-//                String key = entry.getKey();
-//                Object value = entry.getValue();
-//                switch (excelCellsType.get(key)) {
-//                    case "String":
-//                        excelEntityMethods.get("set" + key.substring(0, 1).toUpperCase() + key.substring(1)).invoke(excelEntity
-//                                , value.toString());
-//                        break;
-//                    case "Long":
-//                        excelEntityMethods.get("set" + key.substring(0, 1).toUpperCase() + key.substring(1)).invoke(excelEntity
-//                                , Long.parseLong(value.toString()));
-//                        break;
-//                    case "Boolean":
-//                        excelEntityMethods.get("set" + key.substring(0, 1).toUpperCase() + key.substring(1)).invoke(excelEntity
-//                                , Boolean.parseBoolean(value.toString()));
-//                        break;
-//                    case "Date":
-//                        excelEntityMethods.get("set" + key.substring(0, 1).toUpperCase() + key.substring(1)).invoke(excelEntity
-//                                , LocalDate.parse(value.toString()));
-//                        break;
-//                    default:
-//                        excelEntityMethods.get("set" + key.substring(0, 1).toUpperCase() + key.substring(1)).invoke(excelEntity
-//                                , value.toString());
-//                        break;
-//                }
-//
-//
-//            }
-//        } catch (IllegalAccessException e) {
-//            e.printStackTrace();
-//        } catch (InvocationTargetException e) {
-//            e.printStackTrace();
-//        }
-//        System.out.println(excelEntity);
         System.out.println("test end123");
 
-        return new ResultEntity(ResultEnum.SUCCESS, entityMap);
-    }
 
+        return new ResultEntity(ResultEnum.SUCCESS, "entityMap");
+    }
 
 
     /**
@@ -119,32 +83,47 @@ public class ExcelServerProviderController {
      *
      * @throws Exception
      */
-    @GetMapping("/readExcelFileOnRow")
-    public List<Map<String, Object>> readExcelFileOnRow() {
+    public List<Map<String, Object>> readExcelFileOnRow(String excelFile) {
+        if (this.isExcelFile(excelFile).equals(false)) {
+            logger.info("该文件不是excel文件");
+            return null;
+        }
+        System.out.println(excelFile);
+        if (excelFile == null) {
+            logger.info("文件名为空！");
+            return null;
+        }
+        this.excelFile = excelFile;
         Map<String, String> excelCellsType = this.getExcelCellsType();
-        if (excelCellsType == null){
+        if (excelCellsType == null) {
             return null;
         }
         //动态创建ExcelEntity
-        EntityGenerator.getInstance(excelCellsType);
+        EntityGenerator.getInstance();
         //获取实体类生成器
         EntityGenerator entityGenerator = EntityGenerator.getEntityGenerator();
+        entityGenerator.setMap(excelCellsType);
         //执行生成器
-        entityGenerator.generator();
+        entityGenerator.generator(ChineseToSpell.getFullSpell(excelFile));
 
         //对ExcelEntity进行编译
-        compiler.compiler();
+        compiler.compiler(ChineseToSpell.getFullSpell(excelFile));
         //读取excel文件
-        File xlsxFile = new File(excelFilePath);
+        File xlsxFile = new File(excelFilePath + excelFile);
         if (!xlsxFile.exists()) {
             logger.info("excel文件不存在！");
             return null;
         }
-
+        String suffix = excelFile.substring(excelFile.lastIndexOf("."));
         //工作表
         Workbook sheets = null;
         try {
-            sheets = WorkbookFactory.create(xlsxFile);
+            if (".xls".equals(suffix) || ".csv".equals(suffix)) {
+                sheets = new HSSFWorkbook(new FileInputStream(xlsxFile));
+            } else {
+                sheets = WorkbookFactory.create(xlsxFile);
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -222,14 +201,29 @@ public class ExcelServerProviderController {
 
 
         }
-        resultData = sheetList;
-        return resultData;
+
+        this.resultData = sheetList;
+        return this.resultData;
     }
 
 
     /**
+     * 获取对应excel文件所有行数据
+     * @param excelFile excel文件名
+     * @return
+     */
+    @GetMapping("/selectSheetAllRow")
+    public ResultEntity selectSheetAllRow(String excelFile){
+        List<Map<String, Object>> list = this.readExcelFileOnRow(excelFile);
+        this.removeExcelEntity(excelFile);
+        return new ResultEntity(ResultEnum.SUCCESS, list);
+    }
+
+
+
+    /**
      * 可以通过任何key进行组合查询
-     *  对象的值全部传null，证明查询该表所有数据
+     * 对象的值全部传null，证明查询该表所有数据
      *
      * @param entityMapData 前端传递的查询字段
      * @return
@@ -240,11 +234,15 @@ public class ExcelServerProviderController {
         Map<String, String> excelFiledMap = new HashMap<>();
 
         Map<String, Object> entityMap = (Map<String, Object>) entityMapData.get("data");
+        this.excelFile = (String) entityMapData.get("sheet");
+        if (excelFile == null) {
+            return new ResultEntity(0, "SYS_ERROR", "sheet为空");
+        }
 
         //获取excel实体
         Object excelEntity = this.getExcelEntity();
-        if (excelEntity == null){
-            return new ResultEntity(0,"SYS_ERROR","该文件为空！");
+        if (excelEntity == null) {
+            return new ResultEntity(0, "SYS_ERROR", "该文件为空！");
         }
         //获取excel表格数据类型
         Map<String, String> excelCellsType = this.getExcelCellsType();
@@ -315,6 +313,7 @@ public class ExcelServerProviderController {
 
         int finalNotNullCount = notNullCount;
         //查询符合条件的数据
+        Object finalExcelEntity = excelEntity;
         List<Map<String, Object>> result = sheetData.stream().filter(e -> {
             //遍历map
             Iterator<Map.Entry<String, String>> keyEntries = excelCellsType.entrySet().iterator();
@@ -325,7 +324,8 @@ public class ExcelServerProviderController {
                 Object value = entry.getValue();
                 try {
                     //将满足条件的数据添加标志
-                    if (e.get(key).equals(excelEntityMethods.get("get" + key.substring(0, 1).toUpperCase() + key.substring(1)).invoke(excelEntity))) {
+                    if (e.get(key).equals(excelEntityMethods.get("get" + key.substring(0, 1).toUpperCase() + key.substring(1))
+                            .invoke(finalExcelEntity))) {
                         booleanList.add(true);
                     }
                 } catch (IllegalAccessException ex) {
@@ -340,11 +340,11 @@ public class ExcelServerProviderController {
 
         System.out.println("result = " + result);
 
+        //删除实体类
+        this.removeExcelEntity(excelFile);
+
         return new ResultEntity(ResultEnum.SUCCESS, result);
     }
-
-
-
 
 
     /**
@@ -355,11 +355,16 @@ public class ExcelServerProviderController {
     @GetMapping("/getExcelCellsType")
     public Map<String, String> getExcelCellsType() {
         //读取excel文件
-        File xlsxFile = new File(excelFilePath);
+        File xlsxFile = new File(excelFilePath + this.excelFile);
+        String suffix = excelFile.substring(excelFile.lastIndexOf("."));
         //工作表
         Workbook sheets = null;
         try {
-            sheets = WorkbookFactory.create(xlsxFile);
+            if (".xls".equals(suffix) || ".csv".equals(suffix)) {
+                sheets = new HSSFWorkbook(new FileInputStream(xlsxFile));
+            } else {
+                sheets = WorkbookFactory.create(xlsxFile);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -379,8 +384,6 @@ public class ExcelServerProviderController {
             int maxRowNum = sheet.getLastRowNum() + 1;
             //获取该表的列数
             int cells = temp.getPhysicalNumberOfCells();
-
-
 
             //遍历整个表格
             for (int row = 1; row < 2; row++) {
@@ -427,15 +430,17 @@ public class ExcelServerProviderController {
      */
     public Object getExcelEntity() {
 
-        List<Map<String, Object>> lists = this.readExcelFileOnRow();
-        if (lists == null){
+        List<Map<String, Object>> lists = this.readExcelFileOnRow(this.excelFile);
+        if (lists == null) {
             return null;
         }
         Object excelEntity = null;
 
         try {
             //获取ExcelEntity
-            Class<?> clazz = Class.forName("com.sugon.excel.entity.ExcelEntity");
+            Class<?> clazz = Class.forName("com.sugon.excel.entity.ExcelEntity"+
+                    ChineseToSpell.getFullSpell(this.excelFile.split("\\.")[0]));
+
             excelEntity = clazz.newInstance();
         } catch (Exception e) {
             e.printStackTrace();
@@ -503,5 +508,36 @@ public class ExcelServerProviderController {
         return methodsMap;
     }
 
+    /**
+     * 判断该文件是否为excel/cvs文件
+     *
+     * @param file
+     * @return
+     */
+    private Boolean isExcelFile(String file) {
+        if (file.length() < 3 || file.indexOf(".") == -1) {
+            return false;
+        }
+        String suffix = file.substring(file.lastIndexOf("."));
+        if (".xlsx".equals(suffix) || ".xls".equals(suffix) || ".xlt".equals(suffix) || ".csv".equals(suffix)) {
+            return true;
+        }
+        return false;
+
+
+    }
+
+    /**
+     * 删除实体类
+     * @param excelFile
+     */
+    private void removeExcelEntity(String excelFile){
+        //删除实体类
+        EntityGenerator.getInstance();
+        EntityGenerator entityGenerator = EntityGenerator.getEntityGenerator();
+        entityGenerator.removeEntity(ChineseToSpell.getFullSpell(excelFile));
+    }
+
 
 }
+
