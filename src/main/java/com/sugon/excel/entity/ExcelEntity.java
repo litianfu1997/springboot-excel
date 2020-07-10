@@ -5,7 +5,7 @@ import lombok.Data;
 /**
  * @author litianfu
  * @version 1.0
- * @date 2020-07-09 15:44:54.919
+ * @date 2020-07-10 09:30:02.892
  * @email 1035869369@qq.com
  * 要求该实体类是万能实体类
  */

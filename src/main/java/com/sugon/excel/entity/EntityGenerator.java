@@ -46,6 +46,9 @@ public class EntityGenerator {
         return entityGenerator;
     }
 
+    /**
+     * 生成excel对应的实体类
+     */
     public  void  generator(){
         //编写实体类文件
         try {
