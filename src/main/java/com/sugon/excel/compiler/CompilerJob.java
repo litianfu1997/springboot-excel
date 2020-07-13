@@ -37,9 +37,9 @@ public class CompilerJob {
             int status = javac.run(null, null, null, "-d", System.getProperty("user.dir") + "\\target\\classes"
                     , System.getProperty("user.dir")+"\\src\\main\\java\\com\\sugon\\excel\\entity"+"\\ExcelEntity"+name+".java");
             if (status != 0) {
-                System.out.println("没有编译成功！");
+                logger.info("没有编译成功！");
             }else {
-                System.out.println("编译成功");
+                logger.info("编译成功");
 
             }
 
